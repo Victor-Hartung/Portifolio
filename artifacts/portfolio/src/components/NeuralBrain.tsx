@@ -147,21 +147,24 @@ export default function NeuralBrain() {
     const onMouseLeave = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
 
     // Touch — mirrors mouse behaviour exactly
+    // Touch slide = gentle hover (same as mouse move, no attraction force)
     const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // prevent page scroll while interacting with canvas
+      e.preventDefault();
       if (e.touches.length > 0) {
         const { x, y } = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
         mouseX = x; mouseY = y;
+        isClicking = false; // always gentle repulsion during slide
       }
     };
+    // Touch tap = visual burst only, no sustained attraction
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         const { x, y } = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
         mouseX = x; mouseY = y;
-        isClicking = true;
+        isClicking = false; // keep gentle — no attraction on touch
         rings.push({ x, y, radius: 0, alpha: 0.7 });
         rings.push({ x, y, radius: 0, alpha: 0.4 });
-        for (let k = 0; k < 5; k++) addSpark();
+        for (let k = 0; k < 3; k++) addSpark();
       }
     };
     const onTouchEnd = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
