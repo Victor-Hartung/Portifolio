@@ -127,27 +127,52 @@ export default function NeuralBrain() {
       }
     };
 
-    const onMouseMove = (e: MouseEvent) => {
+    const getCanvasPos = (clientX: number, clientY: number) => {
       const r = canvas.getBoundingClientRect();
-      mouseX = e.clientX - r.left;
-      mouseY = e.clientY - r.top;
+      return { x: clientX - r.left, y: clientY - r.top };
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const { x, y } = getCanvasPos(e.clientX, e.clientY);
+      mouseX = x; mouseY = y;
     };
     const onMouseDown = (e: MouseEvent) => {
       isClicking = true;
-      const r = canvas.getBoundingClientRect();
-      const rx = e.clientX - r.left;
-      const ry = e.clientY - r.top;
-      rings.push({ x: rx, y: ry, radius: 0, alpha: 0.7 });
-      rings.push({ x: rx, y: ry, radius: 0, alpha: 0.4 });
+      const { x, y } = getCanvasPos(e.clientX, e.clientY);
+      rings.push({ x, y, radius: 0, alpha: 0.7 });
+      rings.push({ x, y, radius: 0, alpha: 0.4 });
       for (let k = 0; k < 5; k++) addSpark();
     };
     const onMouseUp = () => { isClicking = false; };
     const onMouseLeave = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
 
+    // Touch — mirrors mouse behaviour exactly
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // prevent page scroll while interacting with canvas
+      if (e.touches.length > 0) {
+        const { x, y } = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        mouseX = x; mouseY = y;
+      }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const { x, y } = getCanvasPos(e.touches[0].clientX, e.touches[0].clientY);
+        mouseX = x; mouseY = y;
+        isClicking = true;
+        rings.push({ x, y, radius: 0, alpha: 0.7 });
+        rings.push({ x, y, radius: 0, alpha: 0.4 });
+        for (let k = 0; k < 5; k++) addSpark();
+      }
+    };
+    const onTouchEnd = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
+
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('mouseleave', onMouseLeave);
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchend', onTouchEnd);
 
     let animId: number;
     let lastTime = 0;
@@ -277,6 +302,9 @@ export default function NeuralBrain() {
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('mouseup', onMouseUp);
       canvas.removeEventListener('mouseleave', onMouseLeave);
+      canvas.removeEventListener('touchmove', onTouchMove);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchend', onTouchEnd);
       cancelAnimationFrame(animId);
     };
   }, []);
