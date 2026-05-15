@@ -9,7 +9,6 @@ interface Node {
   pulse: number;
   pulseSpeed: number;
   hue: number;
-  baseAlpha: number;
 }
 
 interface Spark {
@@ -26,10 +25,20 @@ interface Ring {
   x: number;
   y: number;
   radius: number;
-  maxRadius: number;
   alpha: number;
-  hue: number;
 }
+
+// Precomputed connection pairs — updated every N frames
+interface Pair {
+  i: number;
+  j: number;
+  dist: number;
+}
+
+const CONNECT_DIST = 85;
+const NUM_NODES = 60;
+const TARGET_FPS = 30;
+const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
 export default function NeuralBrain() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,314 +46,238 @@ export default function NeuralBrain() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const resizeCanvas = () => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-      }
+    ctx.imageSmoothingEnabled = false;
+
+    const resize = () => {
+      const p = canvas.parentElement;
+      if (p) { canvas.width = p.clientWidth; canvas.height = p.clientHeight; }
     };
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    window.addEventListener('resize', resize);
+    resize();
 
-    let width = canvas.width;
-    let height = canvas.height;
+    const cx = () => canvas.width / 2;
+    const cy = () => canvas.height / 2;
 
-    const getCenter = () => ({ cx: canvas.width / 2, cy: canvas.height / 2 });
-
-    // Brain shape
-    const isInBrain = (x: number, y: number, cx: number, cy: number, r: number) => {
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
-      const factor = 1 - 0.18 * Math.cos(2 * angle + Math.PI / 2) * Math.sin(angle);
-      return dist < r * factor;
-    };
-
-    const NUM_NODES = 140;
-    const CONNECT_DIST = 90;
-    const nodes: Node[] = [];
-
-    const initNodes = () => {
-      nodes.length = 0;
-      const { cx, cy } = getCenter();
+    const inBrain = (x: number, y: number) => {
       const r = Math.min(canvas.width, canvas.height) * 0.42;
-
-      for (let i = 0; i < NUM_NODES; i++) {
-        let x: number, y: number;
-        let attempts = 0;
-        do {
-          x = cx + (Math.random() * 2 - 1) * r;
-          y = cy + (Math.random() * 2 - 1) * r;
-          attempts++;
-        } while (!isInBrain(x, y, cx, cy, r) && attempts < 200);
-
-        nodes.push({
-          x,
-          y,
-          vx: (Math.random() - 0.5) * 0.25,
-          vy: (Math.random() - 0.5) * 0.25,
-          radius: 1.2 + Math.random() * 2,
-          pulse: Math.random() * Math.PI * 2,
-          pulseSpeed: 0.02 + Math.random() * 0.04,
-          hue: Math.random() < 0.55 ? 180 : 270 + Math.random() * 30,
-          baseAlpha: 0.5 + Math.random() * 0.5,
-        });
-      }
+      const dx = x - cx();
+      const dy = y - cy();
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+      const f = 1 - 0.18 * Math.cos(2 * angle + Math.PI / 2) * Math.sin(angle);
+      return d < r * f;
     };
 
-    initNodes();
+    const nodes: Node[] = [];
+    for (let i = 0; i < NUM_NODES; i++) {
+      const r = Math.min(canvas.width, canvas.height) * 0.42;
+      let x = 0, y = 0, tries = 0;
+      do {
+        x = cx() + (Math.random() * 2 - 1) * r;
+        y = cy() + (Math.random() * 2 - 1) * r;
+        tries++;
+      } while (!inBrain(x, y) && tries < 150);
+      nodes.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        radius: 1.5 + Math.random() * 2,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.025 + Math.random() * 0.025,
+        hue: Math.random() < 0.55 ? 180 : 270 + Math.random() * 30,
+      });
+    }
+
+    let pairs: Pair[] = [];
+    let pairFrame = 0;
+
+    const recomputePairs = () => {
+      pairs = [];
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CONNECT_DIST) pairs.push({ i, j, dist });
+        }
+      }
+    };
 
     const sparks: Spark[] = [];
     const rings: Ring[] = [];
 
-    let mouseX = -1000;
-    let mouseY = -1000;
+    let mouseX = -1000, mouseY = -1000;
     let isClicking = false;
 
     const addSpark = () => {
+      if (sparks.length > 8) return;
       const i = Math.floor(Math.random() * nodes.length);
       const j = Math.floor(Math.random() * nodes.length);
       if (i !== j) {
-        const dx = nodes[j].x - nodes[i].x;
-        const dy = nodes[j].y - nodes[i].y;
-        if (Math.sqrt(dx * dx + dy * dy) < CONNECT_DIST * 1.5) {
-          sparks.push({
-            fromX: nodes[i].x,
-            fromY: nodes[i].y,
-            toX: nodes[j].x,
-            toY: nodes[j].y,
-            progress: 0,
-            speed: 0.02 + Math.random() * 0.03,
-            hue: Math.random() < 0.6 ? 180 : 300,
-          });
-        }
+        sparks.push({
+          fromX: nodes[i].x, fromY: nodes[i].y,
+          toX: nodes[j].x, toY: nodes[j].y,
+          progress: 0,
+          speed: 0.025 + Math.random() * 0.02,
+          hue: Math.random() < 0.6 ? 180 : 300,
+        });
       }
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
+    const onMouseMove = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      mouseX = e.clientX - r.left;
+      mouseY = e.clientY - r.top;
     };
-    const handleTouchMove = (e: TouchEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      if (e.touches.length > 0) {
-        mouseX = e.touches[0].clientX - rect.left;
-        mouseY = e.touches[0].clientY - rect.top;
-      }
-    };
-    const handleMouseDown = (e: MouseEvent) => {
+    const onMouseDown = (e: MouseEvent) => {
       isClicking = true;
-      const rect = canvas.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      rings.push({ x: cx, y: cy, radius: 0, maxRadius: 120, alpha: 0.8, hue: 180 });
-      rings.push({ x: cx, y: cy, radius: 0, maxRadius: 200, alpha: 0.5, hue: 270 });
-      // Fire many sparks on click
-      for (let i = 0; i < 12; i++) addSpark();
+      const r = canvas.getBoundingClientRect();
+      const rx = e.clientX - r.left;
+      const ry = e.clientY - r.top;
+      rings.push({ x: rx, y: ry, radius: 0, alpha: 0.7 });
+      rings.push({ x: rx, y: ry, radius: 0, alpha: 0.4 });
+      for (let k = 0; k < 5; k++) addSpark();
     };
-    const handleMouseUp = () => { isClicking = false; };
-    const handleMouseLeave = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
+    const onMouseUp = () => { isClicking = false; };
+    const onMouseLeave = () => { mouseX = -1000; mouseY = -1000; isClicking = false; };
 
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mouseleave', onMouseLeave);
 
+    let animId: number;
+    let lastTime = 0;
     let frameCount = 0;
-    let animationFrameId: number;
 
-    const render = () => {
+    const render = (time: number) => {
+      animId = requestAnimationFrame(render);
+      if (time - lastTime < FRAME_INTERVAL) return;
+      lastTime = time;
       frameCount++;
-      width = canvas.width;
-      height = canvas.height;
-      const { cx, cy } = getCenter();
-      const brainR = Math.min(width, height) * 0.42;
 
-      ctx.clearRect(0, 0, width, height);
+      const W = canvas.width;
+      const H = canvas.height;
+      const ocx = cx();
+      const ocy = cy();
+      const brainR = Math.min(W, H) * 0.42;
 
-      // Background gradient
-      const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, brainR * 1.2);
-      bg.addColorStop(0, 'rgba(10, 0, 30, 0.95)');
-      bg.addColorStop(1, 'rgba(3, 3, 15, 0)');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, width, height);
+      ctx.clearRect(0, 0, W, H);
 
-      // Periodic auto sparks
-      if (frameCount % 18 === 0) addSpark();
+      // Recompute pairs every 15 frames (~0.5s at 30fps)
+      if (frameCount % 15 === 0) recomputePairs();
 
       // Update nodes
-      for (const node of nodes) {
-        node.pulse += node.pulseSpeed;
-        node.x += node.vx;
-        node.y += node.vy;
+      for (const n of nodes) {
+        n.pulse += n.pulseSpeed;
+        n.x += n.vx;
+        n.y += n.vy;
 
-        if (!isInBrain(node.x, node.y, cx, cy, brainR * 1.08)) {
-          const dx = cx - node.x;
-          const dy = cy - node.y;
+        // Keep in brain
+        if (!inBrain(n.x, n.y)) {
+          const dx = ocx - n.x;
+          const dy = ocy - n.y;
           const d = Math.sqrt(dx * dx + dy * dy);
-          node.vx += (dx / d) * 0.06;
-          node.vy += (dy / d) * 0.06;
+          n.vx += (dx / d) * 0.05;
+          n.vy += (dy / d) * 0.05;
         }
 
-        const mdx = mouseX - node.x;
-        const mdy = mouseY - node.y;
+        // Mouse interaction
+        const mdx = mouseX - n.x;
+        const mdy = mouseY - n.y;
+        const md = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (md < 100) {
+          const force = isClicking ? 0.4 : -0.12;
+          n.vx += (mdx / md) * force;
+          n.vy += (mdy / md) * force;
+        }
+
+        n.vx *= 0.97;
+        n.vy *= 0.97;
+      }
+
+      // Draw connections (no shadow — very expensive)
+      ctx.lineWidth = 0.7;
+      for (const { i, j, dist } of pairs) {
+        const n1 = nodes[i];
+        const n2 = nodes[j];
+
+        const midX = (n1.x + n2.x) / 2;
+        const midY = (n1.y + n2.y) / 2;
+        const mdx = mouseX - midX;
+        const mdy = mouseY - midY;
         const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
 
-        if (mDist < 120) {
-          if (isClicking) {
-            node.vx += (mdx / mDist) * 0.6;
-            node.vy += (mdy / mDist) * 0.6;
-          } else {
-            node.vx -= (mdx / mDist) * 0.15;
-            node.vy -= (mdy / mDist) * 0.15;
-          }
-        }
+        const nearMouse = mDist < 130;
+        const baseA = (1 - dist / CONNECT_DIST) * 0.3;
+        const alpha = nearMouse ? Math.min(0.85, baseA + 0.5 * (1 - mDist / 130)) : baseA;
+        const hue = nearMouse ? 180 : 270;
 
-        node.vx *= 0.97;
-        node.vy *= 0.97;
+        ctx.beginPath();
+        ctx.moveTo(n1.x, n1.y);
+        ctx.lineTo(n2.x, n2.y);
+        ctx.strokeStyle = `hsla(${hue}, 100%, 65%, ${alpha})`;
+        ctx.lineWidth = nearMouse ? 1.2 : 0.5;
+        ctx.stroke();
       }
 
-      // Draw connections
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const n1 = nodes[i];
-          const n2 = nodes[j];
-          const dx = n1.x - n2.x;
-          const dy = n1.y - n2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < CONNECT_DIST) {
-            const midX = (n1.x + n2.x) / 2;
-            const midY = (n1.y + n2.y) / 2;
-            const mdx = mouseX - midX;
-            const mdy = mouseY - midY;
-            const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-
-            const baseAlpha = (1 - dist / CONNECT_DIST) * 0.35;
-            let alpha = baseAlpha;
-            let hue = 270;
-
-            if (mDist < 140) {
-              alpha = Math.min(0.95, baseAlpha + 0.6 * (1 - mDist / 140));
-              hue = 180;
-            }
-
-            const grad = ctx.createLinearGradient(n1.x, n1.y, n2.x, n2.y);
-            grad.addColorStop(0, `hsla(${n1.hue}, 100%, 65%, ${alpha})`);
-            grad.addColorStop(1, `hsla(${n2.hue}, 100%, 65%, ${alpha})`);
-
-            ctx.beginPath();
-            ctx.moveTo(n1.x, n1.y);
-            ctx.lineTo(n2.x, n2.y);
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = mDist < 140 ? 1.5 : 0.6;
-            ctx.shadowColor = `hsla(${hue}, 100%, 65%, 0.6)`;
-            ctx.shadowBlur = mDist < 140 ? 8 : 0;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-          }
-        }
-      }
-
-      // Draw sparks (traveling signals)
+      // Sparks (auto-fire occasionally)
+      if (frameCount % 25 === 0) addSpark();
       for (let i = sparks.length - 1; i >= 0; i--) {
         const sp = sparks[i];
         sp.progress += sp.speed;
-
-        if (sp.progress >= 1) {
-          sparks.splice(i, 1);
-          continue;
-        }
-
+        if (sp.progress >= 1) { sparks.splice(i, 1); continue; }
         const t = sp.progress;
         const sx = sp.fromX + (sp.toX - sp.fromX) * t;
         const sy = sp.fromY + (sp.toY - sp.fromY) * t;
-
-        const fade = t < 0.2 ? t / 0.2 : t > 0.8 ? (1 - t) / 0.2 : 1;
-
+        const fade = t < 0.15 ? t / 0.15 : t > 0.8 ? (1 - t) / 0.2 : 1;
         ctx.beginPath();
-        ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${sp.hue}, 100%, 80%, ${fade})`;
-        ctx.shadowColor = `hsla(${sp.hue}, 100%, 80%, 0.9)`;
-        ctx.shadowBlur = 12;
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${sp.hue}, 100%, 80%, ${fade * 0.9})`;
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
 
-      // Draw nodes
-      for (const node of nodes) {
-        const pulseFactor = 0.85 + 0.15 * Math.sin(node.pulse);
-        const r = node.radius * pulseFactor;
+      // Nodes — batch by hue to reduce strokeStyle changes
+      for (const n of nodes) {
+        const pf = 0.88 + 0.12 * Math.sin(n.pulse);
+        const r = n.radius * pf;
+        const mdx = mouseX - n.x;
+        const mdy = mouseY - n.y;
+        const nearMouse = Math.sqrt(mdx * mdx + mdy * mdy) < 90;
 
-        const mdx = mouseX - node.x;
-        const mdy = mouseY - node.y;
-        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-        const nearMouse = mDist < 100;
-
-        const alpha = node.baseAlpha * pulseFactor;
-        const glowR = nearMouse ? r * 3.5 : r * 2;
-
-        // Glow
-        const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowR);
-        glow.addColorStop(0, `hsla(${node.hue}, 100%, 75%, ${nearMouse ? 0.9 : alpha})`);
-        glow.addColorStop(0.5, `hsla(${node.hue}, 100%, 65%, ${(nearMouse ? 0.4 : alpha * 0.3)})`);
-        glow.addColorStop(1, `hsla(${node.hue}, 100%, 60%, 0)`);
         ctx.beginPath();
-        ctx.arc(node.x, node.y, glowR, 0, Math.PI * 2);
-        ctx.fillStyle = glow;
+        ctx.arc(n.x, n.y, nearMouse ? r * 2.5 : r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${n.hue}, 100%, ${nearMouse ? 90 : 70}%, ${nearMouse ? 1 : n.pulse % (Math.PI * 2) / (Math.PI * 2) * 0.4 + 0.6})`;
         ctx.fill();
-
-        // Core
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${node.hue}, 100%, 85%, ${nearMouse ? 1 : alpha})`;
-        ctx.shadowColor = `hsla(${node.hue}, 100%, 70%, 0.8)`;
-        ctx.shadowBlur = nearMouse ? 15 : 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
       }
 
-      // Draw click rings
+      // Click rings
       for (let i = rings.length - 1; i >= 0; i--) {
         const ring = rings[i];
-        ring.radius += 4;
-        ring.alpha *= 0.94;
-
-        if (ring.alpha < 0.01) {
-          rings.splice(i, 1);
-          continue;
-        }
-
+        ring.radius += 5;
+        ring.alpha *= 0.92;
+        if (ring.alpha < 0.01) { rings.splice(i, 1); continue; }
         ctx.beginPath();
         ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `hsla(${ring.hue}, 100%, 70%, ${ring.alpha})`;
+        ctx.strokeStyle = `rgba(0, 255, 255, ${ring.alpha})`;
         ctx.lineWidth = 1.5;
-        ctx.shadowColor = `hsla(${ring.hue}, 100%, 70%, 0.6)`;
-        ctx.shadowBlur = 10;
         ctx.stroke();
-        ctx.shadowBlur = 0;
       }
-
-      animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    recomputePairs();
+    animId = requestAnimationFrame(render);
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', resize);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('mouseleave', onMouseLeave);
+      cancelAnimationFrame(animId);
     };
   }, []);
 

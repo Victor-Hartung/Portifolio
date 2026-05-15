@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 
+const TARGET_FPS = 30;
+const FRAME_INTERVAL = 1000 / TARGET_FPS;
+
 interface Particle {
   x: number;
   y: number;
-  vx: number;
   vy: number;
   size: number;
   alpha: number;
@@ -31,179 +33,130 @@ export default function BackgroundGrid() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
 
-    let mouseX = width / 2;
-    let mouseY = height / 2;
-    let targetMouseX = width / 2;
-    let targetMouseY = height / 2;
+    let mouseX = W / 2;
+    let mouseY = H / 2;
+    let targetX = W / 2;
+    let targetY = H / 2;
 
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+    const onResize = () => {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
     };
+    const onMouseMove = (e: MouseEvent) => { targetX = e.clientX; targetY = e.clientY; };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      targetMouseX = e.clientX;
-      targetMouseY = e.clientY;
-    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('mousemove', onMouseMove);
 
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('mousemove', handleMouseMove);
+    // 4 nebula orbs
+    const orbs: Orb[] = Array.from({ length: 4 }, (_, i) => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.25,
+      radius: 220 + Math.random() * 200,
+      hue: i % 2 === 0 ? 180 : 270,
+      alpha: 0.05 + Math.random() * 0.045,
+    }));
 
-    // Floating orbs — nebula blobs
-    const orbs: Orb[] = [];
-    const ORB_COUNT = 6;
-    for (let i = 0; i < ORB_COUNT; i++) {
-      orbs.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        radius: 200 + Math.random() * 300,
-        hue: i % 2 === 0 ? 180 : 270,
-        alpha: 0.04 + Math.random() * 0.06,
-      });
-    }
-
-    // Floating particles
+    // Particles — fewer, no shadow blur
+    const MAX_P = 70;
     const particles: Particle[] = [];
-    const MAX_PARTICLES = 120;
 
-    const spawnParticle = () => {
+    const spawnParticle = (randomY = false) => {
       particles.push({
-        x: Math.random() * width,
-        y: height + 10,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: -(0.3 + Math.random() * 0.8),
-        size: 0.5 + Math.random() * 1.5,
-        alpha: 0.3 + Math.random() * 0.7,
+        x: Math.random() * W,
+        y: randomY ? Math.random() * H : H + 5,
+        vy: -(0.25 + Math.random() * 0.6),
+        size: 0.6 + Math.random() * 1.2,
+        alpha: 0.25 + Math.random() * 0.65,
         hue: Math.random() < 0.6 ? 180 : 270,
         life: 0,
-        maxLife: 200 + Math.random() * 300,
+        maxLife: 220 + Math.random() * 280,
       });
     };
 
-    for (let i = 0; i < MAX_PARTICLES * 0.6; i++) {
-      spawnParticle();
-      particles[particles.length - 1].y = Math.random() * height;
-      particles[particles.length - 1].life = Math.random() * particles[particles.length - 1].maxLife;
-    }
+    for (let i = 0; i < MAX_P * 0.7; i++) spawnParticle(true);
 
-    let animationFrameId: number;
+    let animId: number;
+    let lastTime = 0;
     let frameCount = 0;
 
-    const render = () => {
+    const render = (time: number) => {
+      animId = requestAnimationFrame(render);
+      if (time - lastTime < FRAME_INTERVAL) return;
+      lastTime = time;
       frameCount++;
-      ctx.clearRect(0, 0, width, height);
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Background fill
+      ctx.fillStyle = '#03030f';
+      ctx.fillRect(0, 0, W, H);
 
       // Smooth mouse
-      mouseX += (targetMouseX - mouseX) * 0.04;
-      mouseY += (targetMouseY - mouseY) * 0.04;
+      mouseX += (targetX - mouseX) * 0.04;
+      mouseY += (targetY - mouseY) * 0.04;
 
-      // Deep space background
-      ctx.fillStyle = '#03030f';
-      ctx.fillRect(0, 0, width, height);
-
-      // Draw nebula orbs
+      // Orbs — update and draw (no shadow)
       for (const orb of orbs) {
         orb.x += orb.vx;
         orb.y += orb.vy;
-
-        // Bounce
-        if (orb.x < -orb.radius) orb.x = width + orb.radius;
-        if (orb.x > width + orb.radius) orb.x = -orb.radius;
-        if (orb.y < -orb.radius) orb.y = height + orb.radius;
-        if (orb.y > height + orb.radius) orb.y = -orb.radius;
-
-        // Slight mouse attraction
-        const mx = mouseX - orb.x;
-        const my = mouseY - orb.y;
-        const md = Math.sqrt(mx * mx + my * my);
-        if (md < 600) {
-          orb.vx += (mx / md) * 0.002;
-          orb.vy += (my / md) * 0.002;
-        }
-        orb.vx *= 0.99;
-        orb.vy *= 0.99;
+        if (orb.x < -orb.radius) orb.x = W + orb.radius;
+        if (orb.x > W + orb.radius) orb.x = -orb.radius;
+        if (orb.y < -orb.radius) orb.y = H + orb.radius;
+        if (orb.y > H + orb.radius) orb.y = -orb.radius;
 
         const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.radius);
-        grad.addColorStop(0, `hsla(${orb.hue}, 100%, 60%, ${orb.alpha})`);
-        grad.addColorStop(0.5, `hsla(${orb.hue}, 100%, 50%, ${orb.alpha * 0.4})`);
-        grad.addColorStop(1, `hsla(${orb.hue}, 100%, 40%, 0)`);
-
+        grad.addColorStop(0, `hsla(${orb.hue},100%,60%,${orb.alpha})`);
+        grad.addColorStop(0.5, `hsla(${orb.hue},100%,50%,${orb.alpha * 0.3})`);
+        grad.addColorStop(1, `hsla(${orb.hue},100%,40%,0)`);
         ctx.beginPath();
         ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
         ctx.fillStyle = grad;
         ctx.fill();
       }
 
-      // Mouse-follow glow
-      const mGrad = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 350);
-      mGrad.addColorStop(0, 'rgba(0, 255, 255, 0.05)');
-      mGrad.addColorStop(0.5, 'rgba(0, 255, 255, 0.02)');
-      mGrad.addColorStop(1, 'rgba(0, 255, 255, 0)');
-      ctx.beginPath();
-      ctx.arc(mouseX, mouseY, 350, 0, Math.PI * 2);
-      ctx.fillStyle = mGrad;
-      ctx.fill();
+      // Mouse glow
+      const mg = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 280);
+      mg.addColorStop(0, 'rgba(0,255,255,0.04)');
+      mg.addColorStop(1, 'rgba(0,255,255,0)');
+      ctx.fillStyle = mg;
+      ctx.fillRect(mouseX - 280, mouseY - 280, 560, 560);
 
-      // Spawn new particles
-      if (frameCount % 3 === 0 && particles.length < MAX_PARTICLES) {
-        spawnParticle();
-      }
+      // Spawn particles
+      if (frameCount % 4 === 0 && particles.length < MAX_P) spawnParticle(false);
 
-      // Draw particles
+      // Particles — no shadow blur
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x += p.vx;
         p.y += p.vy;
         p.life++;
+        if (p.life >= p.maxLife || p.y < -5) { particles.splice(i, 1); continue; }
 
-        if (p.life >= p.maxLife) {
-          particles.splice(i, 1);
-          continue;
-        }
-
-        const progress = p.life / p.maxLife;
-        const fadeAlpha = progress < 0.1
-          ? (progress / 0.1) * p.alpha
-          : progress > 0.8
-            ? ((1 - progress) / 0.2) * p.alpha
-            : p.alpha;
-
-        // Twinkle
-        const twinkle = 0.7 + 0.3 * Math.sin(p.life * 0.1 + p.x);
+        const prog = p.life / p.maxLife;
+        const fade = prog < 0.12 ? prog / 0.12 : prog > 0.8 ? (1 - prog) / 0.2 : 1;
+        const twinkle = 0.75 + 0.25 * Math.sin(p.life * 0.12 + p.x * 0.01);
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${fadeAlpha * twinkle})`;
-        ctx.shadowColor = `hsla(${p.hue}, 100%, 70%, 0.8)`;
-        ctx.shadowBlur = 6;
+        ctx.fillStyle = `hsla(${p.hue},100%,72%,${p.alpha * fade * twinkle})`;
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
-
-      // Subtle scanline overlay every ~80px
-      ctx.fillStyle = 'rgba(0,0,0,0.015)';
-      for (let y = 0; y < height; y += 4) {
-        ctx.fillRect(0, y, width, 1);
-      }
-
-      animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('mousemove', onMouseMove);
+      cancelAnimationFrame(animId);
     };
   }, []);
 
