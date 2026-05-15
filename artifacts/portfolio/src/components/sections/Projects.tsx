@@ -1,87 +1,111 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { ExternalLink, Github } from 'lucide-react';
 
 const PROJECTS = [
   {
-    title: 'NEXUS_PROTOCOL',
-    description: 'A decentralized data routing protocol designed for high-frequency trading networks. Features sub-millisecond latency and cryptographic verification.',
+    title: 'NEXUS PROTOCOL',
+    description: 'Dashboard administrativo para gestão de redes distribuídas. Interface densa em dados com visualizações em tempo real e controle granular de permissões.',
     tags: ['React', 'Node.js', 'TypeScript', 'WebSockets'],
-    theme: 'primary' // Cyan
+    theme: 'primary',
   },
   {
-    title: 'VOID_INTERFACE',
-    description: 'Dark-web inspired administrative dashboard for complex server farm management. Incorporates real-time metrics and anomalous activity detection.',
+    title: 'VOID INTERFACE',
+    description: 'Plataforma de gestão visual com métricas ao vivo e painel de monitoramento. Foco em performance e clareza de informação para operações críticas.',
     tags: ['Next.js', 'Tailwind CSS', 'PostgreSQL', 'GraphQL'],
-    theme: 'secondary' // Violet
+    theme: 'secondary',
   },
   {
-    title: 'SYNAPSE_GRID',
-    description: 'Visual logic mapper for composing automated workflows. Users connect operational nodes on an infinite canvas to script background processes.',
+    title: 'SYNAPSE GRID',
+    description: 'Ferramenta visual de automação de fluxos de trabalho. Usuários conectam nós em um canvas infinito para compor processos em background.',
     tags: ['TypeScript', 'Canvas API', 'Express', 'Redis'],
-    theme: 'primary' // Cyan
-  }
+    theme: 'primary',
+  },
 ];
 
 export default function Projects() {
   return (
-    <section id="projects" className="relative py-20">
-      <motion.div 
+    <section id="projects" className="relative py-24">
+      <motion.div
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
+        viewport={{ once: true, margin: '-100px' }}
         transition={{ duration: 0.8 }}
       >
         <div className="flex items-center gap-4 mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
-            <span className="text-primary neon-text-cyan">03.</span> ARCHIVES
+            <span className="text-primary neon-text-cyan">03.</span> PROJETOS
           </h2>
           <div className="h-[1px] flex-grow bg-gradient-to-r from-border to-transparent" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
           {PROJECTS.map((project, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ delay: i * 0.2, duration: 0.6 }}
-              className={`group relative h-full flex flex-col bg-card/40 backdrop-blur-sm border border-white/10 rounded-xl p-8 overflow-hidden transition-all duration-300 hover:-translate-y-2 ${project.theme === 'primary' ? 'neon-border' : 'neon-border-violet'}`}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ delay: i * 0.15, duration: 0.6 }}
+              className={`group relative h-full flex flex-col rounded-xl overflow-hidden transition-all duration-400 hover:-translate-y-2 ${project.theme === 'primary' ? 'neon-border' : 'neon-border-violet'}`}
+              style={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(12px)' }}
             >
-              {/* Background gradient on hover */}
-              <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-b ${project.theme === 'primary' ? 'from-primary' : 'from-secondary'} to-transparent`} />
-              
-              <div className="flex justify-between items-start mb-6 relative z-10">
-                <div className={`p-3 rounded-lg bg-background border ${project.theme === 'primary' ? 'border-primary/30 text-primary' : 'border-secondary/30 text-secondary'}`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinelinejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                </div>
-                <div className="flex gap-4">
-                  <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Github size={20} />
-                  </a>
-                  <a href="#" className={`text-muted-foreground transition-colors ${project.theme === 'primary' ? 'hover:text-primary hover:neon-text-cyan' : 'hover:text-secondary hover:neon-text-violet'}`}>
-                    <ExternalLink size={20} />
-                  </a>
-                </div>
-              </div>
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                style={{
+                  background: project.theme === 'primary'
+                    ? 'radial-gradient(circle at top left, rgba(0,255,255,0.05) 0%, transparent 60%)'
+                    : 'radial-gradient(circle at top left, rgba(157,0,255,0.05) 0%, transparent 60%)',
+                }}
+              />
 
-              <h3 className={`text-xl font-bold font-mono mb-4 transition-colors ${project.theme === 'primary' ? 'group-hover:text-primary group-hover:neon-text-cyan' : 'group-hover:text-secondary group-hover:neon-text-violet'}`}>
-                {project.title}
-              </h3>
-              
-              <p className="text-muted-foreground text-sm leading-relaxed mb-8 flex-grow">
-                {project.description}
-              </p>
+              <div className="p-7 flex flex-col h-full relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{
+                      border: `1px solid ${project.theme === 'primary' ? 'rgba(0,255,255,0.3)' : 'rgba(157,0,255,0.3)'}`,
+                      background: project.theme === 'primary' ? 'rgba(0,255,255,0.05)' : 'rgba(157,0,255,0.05)',
+                    }}
+                  >
+                    <div
+                      className="w-3 h-3 rounded-sm"
+                      style={{ background: project.theme === 'primary' ? '#00ffff' : '#9d00ff', opacity: 0.8 }}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <a href="#" className="text-muted-foreground hover:text-foreground transition-colors" data-testid={`link-github-${i}`}>
+                      <Github size={18} />
+                    </a>
+                    <a
+                      href="#"
+                      className={`text-muted-foreground transition-colors ${project.theme === 'primary' ? 'hover:text-primary' : 'hover:text-secondary'}`}
+                      data-testid={`link-external-${i}`}
+                    >
+                      <ExternalLink size={18} />
+                    </a>
+                  </div>
+                </div>
 
-              <div className="flex flex-wrap gap-2 mt-auto relative z-10">
-                {project.tags.map((tag, j) => (
-                  <span key={j} className="text-xs font-mono px-2 py-1 rounded bg-white/5 text-muted-foreground">
-                    {tag}
-                  </span>
-                ))}
+                <h3
+                  className={`text-lg font-bold font-mono mb-3 transition-colors duration-300 ${project.theme === 'primary' ? 'group-hover:text-primary' : 'group-hover:text-secondary'}`}
+                >
+                  {project.title}
+                </h3>
+
+                <p className="text-muted-foreground text-sm leading-relaxed mb-7 flex-grow">
+                  {project.description}
+                </p>
+
+                <div className="flex flex-wrap gap-2 mt-auto">
+                  {project.tags.map((tag, j) => (
+                    <span
+                      key={j}
+                      className="text-xs font-mono px-2.5 py-1 rounded-sm bg-white/4 text-muted-foreground border border-white/5"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </motion.div>
           ))}

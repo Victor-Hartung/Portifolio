@@ -135,7 +135,7 @@ export default function Contact() {
         
         <div className="mt-32 pt-8 border-t border-white/5 text-center flex flex-col items-center gap-4">
           <div className="font-mono text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} ALEX CHEN. ALL RIGHTS RESERVED.
+            &copy; {new Date().getFullYear()} VICTOR HARTUNG. ALL RIGHTS RESERVED.
           </div>
           <div className="text-[10px] font-mono text-primary/40 uppercase tracking-widest">
             End of Line
