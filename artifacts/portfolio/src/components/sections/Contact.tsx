@@ -15,8 +15,8 @@ export default function Contact() {
     setTimeout(() => {
       setIsSubmitting(false);
       toast({
-        title: "TRANSMISSION_SUCCESSFUL",
-        description: "Your message has been encrypted and delivered.",
+        title: "MENSAGEM ENVIADA",
+        description: "Sua mensagem foi recebida. Em breve retorno o contato.",
         className: "bg-background border-primary text-primary font-mono",
       });
       (e.target as HTMLFormElement).reset();
@@ -42,7 +42,7 @@ export default function Contact() {
         <div className="flex items-center justify-center gap-4 mb-16">
           <div className="h-[1px] w-12 md:w-32 bg-gradient-to-l from-primary to-transparent" />
           <h2 className="text-4xl md:text-5xl font-bold text-center tracking-tight">
-            <span className="text-secondary neon-text-violet">05.</span> INITIATE_CONTACT
+            <span className="text-secondary neon-text-violet">05.</span> CONTATO
           </h2>
           <div className="h-[1px] w-12 md:w-32 bg-gradient-to-r from-primary to-transparent" />
         </div>
@@ -52,8 +52,8 @@ export default function Contact() {
           {/* Link Bio Section */}
           <div className="lg:col-span-2 space-y-8">
             <div className="text-center lg:text-left mb-8">
-              <h3 className="text-2xl font-mono font-bold text-foreground mb-4">DIRECT_LINKS</h3>
-              <p className="text-muted-foreground">Establish a secure connection through established networks.</p>
+              <h3 className="text-2xl font-mono font-bold text-foreground mb-4">LINKS DIRETOS</h3>
+              <p className="text-muted-foreground">Conecte-se pelas redes abaixo ou envie uma mensagem.</p>
             </div>
             
             <div className="flex flex-col gap-4">
@@ -80,39 +80,39 @@ export default function Contact() {
             <div className="bg-card/20 backdrop-blur-md border border-white/10 rounded-2xl p-8 relative overflow-hidden neon-border">
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
               
-              <h3 className="text-2xl font-mono font-bold text-foreground mb-8 relative z-10">TRANSMISSION_FORM</h3>
+              <h3 className="text-2xl font-mono font-bold text-foreground mb-8 relative z-10">FORMULÁRIO DE CONTATO</h3>
               
               <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label htmlFor="name" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">Identifier</label>
+                    <label htmlFor="name" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">Nome</label>
                     <input 
                       id="name" 
                       required 
                       className="w-full bg-black/40 border border-white/10 rounded-md p-3 text-foreground font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/50" 
-                      placeholder="Jane_Doe"
+                      placeholder="Seu nome"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">Return Address</label>
+                    <label htmlFor="email" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">E-mail</label>
                     <input 
                       id="email" 
                       type="email" 
                       required 
                       className="w-full bg-black/40 border border-white/10 rounded-md p-3 text-foreground font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-muted-foreground/50" 
-                      placeholder="jane@example.com"
+                      placeholder="seu@email.com"
                     />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <label htmlFor="message" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">Payload</label>
+                  <label htmlFor="message" className="text-xs font-mono text-muted-foreground uppercase tracking-widest block">Mensagem</label>
                   <textarea 
                     id="message" 
                     required 
                     rows={5}
                     className="w-full bg-black/40 border border-white/10 rounded-md p-3 text-foreground font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all resize-none placeholder:text-muted-foreground/50" 
-                    placeholder="Enter transmission data..."
+                    placeholder="Escreva sua mensagem aqui..."
                   />
                 </div>
                 
@@ -122,7 +122,7 @@ export default function Contact() {
                   className="w-full relative group px-6 py-4 font-mono text-sm font-bold tracking-widest text-background overflow-hidden rounded-md bg-primary transition-all disabled:opacity-70"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {isSubmitting ? 'ENCRYPTING...' : 'TRANSMIT_DATA'}
+                    {isSubmitting ? 'ENVIANDO...' : 'ENVIAR MENSAGEM'}
                     {!isSubmitting && <Send size={16} />}
                   </span>
                   <div className="absolute inset-0 h-full w-0 bg-white/20 transition-all duration-300 ease-out group-hover:w-full z-0" />
@@ -135,10 +135,10 @@ export default function Contact() {
         
         <div className="mt-32 pt-8 border-t border-white/5 text-center flex flex-col items-center gap-4">
           <div className="font-mono text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} VICTOR HARTUNG. ALL RIGHTS RESERVED.
+            &copy; {new Date().getFullYear()} VICTOR HARTUNG. TODOS OS DIREITOS RESERVADOS.
           </div>
           <div className="text-[10px] font-mono text-primary/40 uppercase tracking-widest">
-            End of Line
+            Feito com dedicação
           </div>
         </div>
       </motion.div>
