@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 interface Node {
   x: number;
   y: number;
+  homeX: number; // resting position — spring always pulls back here
+  homeY: number;
   vx: number;
   vy: number;
   radius: number;
@@ -82,8 +84,10 @@ export default function NeuralBrain() {
       } while (!inBrain(x, y) && tries < 150);
       nodes.push({
         x, y,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
+        homeX: x,
+        homeY: y,
+        vx: (Math.random() - 0.5) * 0.2,
+        vy: (Math.random() - 0.5) * 0.2,
         radius: 1.5 + Math.random() * 2,
         pulse: Math.random() * Math.PI * 2,
         pulseSpeed: 0.025 + Math.random() * 0.025,
@@ -204,27 +208,24 @@ export default function NeuralBrain() {
         n.x += n.vx;
         n.y += n.vy;
 
-        // Keep in brain
-        if (!inBrain(n.x, n.y)) {
-          const dx = ocx - n.x;
-          const dy = ocy - n.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          n.vx += (dx / d) * 0.05;
-          n.vy += (dy / d) * 0.05;
-        }
+        // Spring back to home — always pulls node toward its resting position
+        // This prevents nodes from clustering after interactions
+        n.vx += (n.homeX - n.x) * 0.012;
+        n.vy += (n.homeY - n.y) * 0.012;
 
-        // Mouse interaction
+        // Mouse/touch hover: gentle repulsion only, small radius
         const mdx = mouseX - n.x;
         const mdy = mouseY - n.y;
         const md = Math.sqrt(mdx * mdx + mdy * mdy);
-        if (md < 100) {
-          const force = isClicking ? 0.4 : -0.12;
+        if (md < 70 && md > 0) {
+          const force = isClicking ? 0.25 : -0.06;
           n.vx += (mdx / md) * force;
           n.vy += (mdy / md) * force;
         }
 
-        n.vx *= 0.97;
-        n.vy *= 0.97;
+        // Strong damping so velocity bleeds off quickly and spring wins
+        n.vx *= 0.88;
+        n.vy *= 0.88;
       }
 
       // Draw connections (no shadow — very expensive)
